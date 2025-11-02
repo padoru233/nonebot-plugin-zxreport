@@ -3,6 +3,7 @@ from datetime import datetime
 import random
 
 from nonebot import get_bots, require
+from nonebot.adapters.onebot.v11.exception import ActionFailed
 from nonebot.log import logger
 from nonebot.permission import SUPERUSER
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
@@ -50,7 +51,7 @@ __plugin_meta__ = PluginMetadata(
 )
 
 
-_matcher = on_alconna(Alconna("真寻日报"), priority=5, block=True)
+_matcher = on_alconna(Alconna("真寻日报"), priority=5, block=True, use_origin=True)
 
 _status_matcher = on_alconna(
     Alconna(
@@ -141,19 +142,27 @@ async def _():
     hour=9,
     minute=1,
 )
+
 async def _():
     if not config.auto_send:
         return
+
     file = await Report.get_report_image()
-    for _, bot in get_bots().items():
+
+    for bot_id, bot in get_bots().items():
         if interface := get_interface(bot):
             scenes = [
-                s
-                for s in await interface.get_scenes()
+                s for s in await interface.get_scenes()
                 if s.is_group and not group_manager.check(s.id)
             ]
             for scene in scenes:
-                await UniMessage(Image(raw=file)).send(bot=bot, target=Target(scene.id))
-                rand = random.randint(1, 5)
-                await asyncio.sleep(rand)
-    logger.info("每日真寻日报发送完成...")
+                try:
+                    await UniMessage(Image(raw=file)).send(
+                        bot=bot,
+                        target=Target(scene.id),
+                    )
+                except ActionFailed as e:
+                    logger.warning(f"群 {scene.id} 发报表失败: {e}")
+                await asyncio.sleep(random.randint(1, 5))
+
+    logger.info("每日真寻日报完成")

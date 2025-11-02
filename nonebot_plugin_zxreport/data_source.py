@@ -63,10 +63,14 @@ class AsyncHttpx:
             )
         ),
     )
-    async def get(cls, url: str) -> Response:
+    async def get(cls, url: str, **kwargs) -> Response:
         async with httpx.AsyncClient() as client:
+            # 清掉默认的 if-none-match/if-modified-since 避免走 412
+            client.headers.pop("if-none-match", None)
+            client.headers.pop("if-modified-since", None)
+
             try:
-                response = await client.get(url)
+                response = await client.get(url, **kwargs)
                 response.raise_for_status()
                 return response
             except (TimeoutException, ConnectError, HTTPStatusError) as e:
@@ -105,8 +109,8 @@ def save(data: bytes):
 
 class Report:
     hitokoto_url = "https://v1.hitokoto.cn/?c=a"
-    alapi_url = "https://v2.alapi.cn/api/zaobao"
-    six_url = "https://60s.viki.moe/?v2=1"
+    alapi_url = "https://v3.alapi.cn/api/zaobao"
+    six_url = "https://60s.viki.moe/v2/60s"
     game_url = "https://www.4gamers.com.tw/rss/latest-news"
     bili_url = "https://s.search.bilibili.com/main/hotword"
     it_url = "https://www.ithome.com/rss/"
@@ -174,10 +178,23 @@ class Report:
 
     @classmethod
     async def get_bili(cls) -> list[str]:
-        """获取哔哩哔哩热搜"""
-        res = await AsyncHttpx.get(cls.bili_url)
+        """获取哔哩哔哩热搜，防止 412"""
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/141.0.0.0 Safari/537.36"
+            ),
+            "Referer": "https://www.bilibili.com/",
+            "Accept": "application/json, text/plain, */*",
+            # 强制不走缓存
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+        }
+        # 这里我们把 headers 透传给 AsyncHttpx.get
+        res = await AsyncHttpx.get(cls.bili_url, headers=headers, timeout=10.0)
         data = res.json()
-        return [item["keyword"] for item in data["list"]]
+        return [item["keyword"] for item in data.get("list", [])]
 
     @classmethod
     async def get_alapi_data(cls) -> list[str]:

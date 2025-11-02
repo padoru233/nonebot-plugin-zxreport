@@ -22,18 +22,14 @@ def get_next_year_festival_date(
     festival_name: str, current_festival_date: date
 ) -> date:
     """获取下一个该节日的日期"""
-    if festival_name in lunar_festivals:
-        # 对于农历节日，使用lunardate库转换为下一年的公历日期
-        next_year = current_festival_date.year + 1
-        month, day = lunar_festivals[festival_name]
-        next_festival_date = lunardate.LunarDate(next_year, month, day).toSolarDate()
-    else:
+    if festival_name not in lunar_festivals:
         # 对于固定日期的节日，直接增加一年
-        next_festival_date = current_festival_date.replace(
-            year=current_festival_date.year + 1
-        )
+        return current_festival_date.replace(year=current_festival_date.year + 1)
 
-    return next_festival_date
+    # 对于农历节日，使用lunardate库转换为下一年的公历日期
+    next_year = current_festival_date.year + 1
+    month, day = lunar_festivals[festival_name]
+    return lunardate.LunarDate(next_year, month, day).toSolarDate()
 
 
 def find_tomb_sweeping_day(year: int) -> date:
@@ -57,10 +53,10 @@ def days_until_festival(festival_name: str, today: date, festival_date: date) ->
         # 如果节日已经过去，计算下一个该节日的到来时间
         next_festival_date = get_next_year_festival_date(festival_name, festival_date)
         delta = next_festival_date - today
-        return delta.days
     else:
         delta = festival_date - today
-        return delta.days
+
+    return delta.days
 
 
 # 获取农历节日对应的公历日期
