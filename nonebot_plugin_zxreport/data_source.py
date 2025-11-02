@@ -6,6 +6,7 @@ import xml.etree.ElementTree as ET
 import httpx
 from httpx import ConnectError, HTTPStatusError, Response, TimeoutException
 from nonebot.log import logger
+
 from nonebot.utils import run_sync
 from nonebot_plugin_htmlrender import template_to_pic
 import tenacity
@@ -65,10 +66,6 @@ class AsyncHttpx:
     )
     async def get(cls, url: str, **kwargs) -> Response:
         async with httpx.AsyncClient() as client:
-            # 清掉默认的 if-none-match/if-modified-since 避免走 412
-            client.headers.pop("if-none-match", None)
-            client.headers.pop("if-modified-since", None)
-
             try:
                 response = await client.get(url, **kwargs)
                 response.raise_for_status()
@@ -110,7 +107,7 @@ def save(data: bytes):
 class Report:
     hitokoto_url = "https://v1.hitokoto.cn/?c=a"
     alapi_url = "https://v3.alapi.cn/api/zaobao"
-    six_url = "https://60s.viki.moe/v2/60s"
+    six_url = "https://60api.09cdn.xyz/v2/60s" # 如域名无法访问，可使用公共实例: https://docs.60s-api.viki.moe/7306811m0
     game_url = "https://www.4gamers.com.tw/rss/latest-news"
     bili_url = "https://s.search.bilibili.com/main/hotword"
     it_url = "https://www.ithome.com/rss/"
@@ -191,7 +188,6 @@ class Report:
             "Cache-Control": "no-cache",
             "Pragma": "no-cache",
         }
-        # 这里我们把 headers 透传给 AsyncHttpx.get
         res = await AsyncHttpx.get(cls.bili_url, headers=headers, timeout=10.0)
         data = res.json()
         return [item["keyword"] for item in data.get("list", [])]
