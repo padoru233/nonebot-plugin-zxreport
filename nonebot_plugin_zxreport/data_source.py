@@ -4,8 +4,9 @@ import json
 import xml.etree.ElementTree as ET
 
 import httpx
-from httpx import ConnectError, HTTPStatusError, Response, TimeoutException
+from httpx import ConnectError, HTTPStatusError, Response, TimeoutException, ReadTimeout
 from nonebot.log import logger
+
 from nonebot.utils import run_sync
 from nonebot_plugin_htmlrender import template_to_pic
 import tenacity
@@ -59,17 +60,20 @@ class AsyncHttpx:
         wait=wait_fixed(1),
         retry=(
             tenacity.retry_if_exception_type(
-                (TimeoutException, ConnectError, HTTPStatusError)
+                (TimeoutException, ConnectError, HTTPStatusError, ReadTimeout)
             )
         ),
     )
-    async def get(cls, url: str) -> Response:
+    async def get(cls, url: str, **kwargs) -> Response:
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = 30.0
+
         async with httpx.AsyncClient() as client:
             try:
-                response = await client.get(url)
+                response = await client.get(url, **kwargs)
                 response.raise_for_status()
                 return response
-            except (TimeoutException, ConnectError, HTTPStatusError) as e:
+            except (TimeoutException, ConnectError, HTTPStatusError, ReadTimeout) as e:
                 logger.error(f"Request to {url} failed due to: {e}")
                 raise
 
@@ -79,19 +83,19 @@ class AsyncHttpx:
         wait=wait_fixed(1),
         retry=(
             tenacity.retry_if_exception_type(
-                (TimeoutException, ConnectError, HTTPStatusError)
+                (TimeoutException, ConnectError, HTTPStatusError, ReadTimeout)
             )
         ),
     )
     async def post(
         cls, url: str, data: dict[str, str], headers: dict[str, str]
     ) -> Response:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             try:
                 response = await client.post(url, data=data, headers=headers)
                 response.raise_for_status()
                 return response
-            except (TimeoutException, ConnectError, HTTPStatusError) as e:
+            except (TimeoutException, ConnectError, HTTPStatusError, ReadTimeout) as e:
                 logger.error(f"Request to {url} failed due to: {e}")
                 raise
 
@@ -105,8 +109,8 @@ def save(data: bytes):
 
 class Report:
     hitokoto_url = "https://v1.hitokoto.cn/?c=a"
-    alapi_url = "https://v2.alapi.cn/api/zaobao"
-    six_url = "https://60s.viki.moe/?v2=1"
+    alapi_url = "https://v3.alapi.cn/api/zaobao"
+    six_url = "https://60api.09cdn.xyz/v2/60s" # 如域名无法访问，可使用公共实例: https://docs.60s-api.viki.moe/7306811m0
     game_url = "https://www.4gamers.com.tw/rss/latest-news"
     bili_url = "https://s.search.bilibili.com/main/hotword"
     it_url = "https://www.ithome.com/rss/"
@@ -174,10 +178,22 @@ class Report:
 
     @classmethod
     async def get_bili(cls) -> list[str]:
-        """获取哔哩哔哩热搜"""
-        res = await AsyncHttpx.get(cls.bili_url)
+        """获取哔哩哔哩热搜，防止 412"""
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/141.0.0.0 Safari/537.36"
+            ),
+            "Referer": "https://www.bilibili.com/",
+            "Accept": "application/json, text/plain, */*",
+            # 强制不走缓存
+            "Cache-Control": "no-cache",
+            "Pragma": "no-cache",
+        }
+        res = await AsyncHttpx.get(cls.bili_url, headers=headers, timeout=10.0)
         data = res.json()
-        return [item["keyword"] for item in data["list"]]
+        return [item["keyword"] for item in data.get("list", [])]
 
     @classmethod
     async def get_alapi_data(cls) -> list[str]:
