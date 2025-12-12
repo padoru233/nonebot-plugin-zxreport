@@ -147,7 +147,11 @@ async def _():
     if not config.auto_send:
         return
 
-    file = await Report.get_report_image()
+    try:
+        file = await Report.get_report_image()
+    except Exception as e:
+        logger.error(f"获取日报图片失败: {e}")
+        return
 
     for bot_id, bot in get_bots().items():
         if interface := get_interface(bot):
@@ -162,7 +166,10 @@ async def _():
                         target=Target(scene.id),
                     )
                 except ActionFailed as e:
-                    logger.warning(f"群 {scene.id} 发报表失败: {e}")
+                    logger.error(f"群 {scene.id} 发送失败: {e}")
+                except Exception as e:
+                    logger.error(f"群 {scene.id} 发送时发生错误: {e}", exc_info=True)
+
                 await asyncio.sleep(random.randint(1, 5))
 
     logger.info("每日真寻日报完成")

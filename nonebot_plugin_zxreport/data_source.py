@@ -4,7 +4,7 @@ import json
 import xml.etree.ElementTree as ET
 
 import httpx
-from httpx import ConnectError, HTTPStatusError, Response, TimeoutException, ReadTimeout
+from httpx import ConnectError, HTTPStatusError, Response, TimeoutException
 from nonebot.log import logger
 
 from nonebot.utils import run_sync
@@ -60,7 +60,7 @@ class AsyncHttpx:
         wait=wait_fixed(1),
         retry=(
             tenacity.retry_if_exception_type(
-                (TimeoutException, ConnectError, HTTPStatusError, ReadTimeout)
+                (TimeoutException, ConnectError, HTTPStatusError)
             )
         ),
     )
@@ -73,7 +73,7 @@ class AsyncHttpx:
                 response = await client.get(url, **kwargs)
                 response.raise_for_status()
                 return response
-            except (TimeoutException, ConnectError, HTTPStatusError, ReadTimeout) as e:
+            except (TimeoutException, ConnectError, HTTPStatusError) as e:
                 logger.error(f"Request to {url} failed due to: {e}")
                 raise
 
@@ -83,19 +83,20 @@ class AsyncHttpx:
         wait=wait_fixed(1),
         retry=(
             tenacity.retry_if_exception_type(
-                (TimeoutException, ConnectError, HTTPStatusError, ReadTimeout)
+                (TimeoutException, ConnectError, HTTPStatusError)
             )
         ),
     )
-    async def post(
-        cls, url: str, data: dict[str, str], headers: dict[str, str]
-    ) -> Response:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+    async def post(cls, url: str, **kwargs) -> Response:
+        if 'timeout' not in kwargs:
+            kwargs['timeout'] = 30.0
+
+        async with httpx.AsyncClient() as client:
             try:
-                response = await client.post(url, data=data, headers=headers)
+                response = await client.post(url, **kwargs)
                 response.raise_for_status()
                 return response
-            except (TimeoutException, ConnectError, HTTPStatusError, ReadTimeout) as e:
+            except (TimeoutException, ConnectError, HTTPStatusError) as e:
                 logger.error(f"Request to {url} failed due to: {e}")
                 raise
 
