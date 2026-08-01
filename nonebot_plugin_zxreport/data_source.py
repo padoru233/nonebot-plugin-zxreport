@@ -115,7 +115,7 @@ class Report:
     game_url = "https://www.4gamers.com.tw/rss/latest-news"
     bili_url = "https://s.search.bilibili.com/main/hotword"
     it_url = "https://www.ithome.com/rss/"
-    anime_url = "https://api.bgm.tv/calendar"
+    anime_url = "https://api.kazumi.fyi/calendar"   # 变更为镜像站
 
     week = {  # noqa: RUF012
         0: "一",
