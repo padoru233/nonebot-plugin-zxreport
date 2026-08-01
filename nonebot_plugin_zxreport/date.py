@@ -3,7 +3,7 @@ from datetime import date, timedelta
 import chinese_calendar as calendar
 import lunardate
 
-# 定义2025年农历节日的农历日期
+# 农历节日的农历日期
 lunar_festivals = {
     "春节": (1, 1),  # 春节 (农历正月初一)
     "端午节": (5, 5),  # 端午节 (农历五月初五)
@@ -11,10 +11,10 @@ lunar_festivals = {
 }
 
 # 固定日期的节日
-fixed_festivals_dates = {
-    "劳动节": date(2025, 5, 1),  # 劳动节
-    "国庆节": date(2025, 10, 1),  # 国庆节
-    "元旦": date(2025, 1, 1),  # 元旦
+fixed_festivals = {
+    "劳动节": (5, 1),  # 劳动节
+    "国庆节": (10, 1),  # 国庆节
+    "元旦": (1, 1),  # 元旦
 }
 
 
@@ -49,14 +49,9 @@ def find_tomb_sweeping_day(year: int) -> date:
 
 
 def days_until_festival(festival_name: str, today: date, festival_date: date) -> int:
-    if festival_date < today:
-        # 如果节日已经过去，计算下一个该节日的到来时间
-        next_festival_date = get_next_year_festival_date(festival_name, festival_date)
-        delta = next_festival_date - today
-    else:
-        delta = festival_date - today
-
-    return delta.days
+    while festival_date < today:
+        festival_date = get_next_year_festival_date(festival_name, festival_date)
+    return (festival_date - today).days
 
 
 # 获取农历节日对应的公历日期
@@ -74,7 +69,10 @@ def get_festivals_dates() -> list[tuple[int, str]]:
     # 添加清明节到节日字典中
     lunar_festivals_dates["清明节"] = find_tomb_sweeping_day(today.year)
 
-    # 合并两个字典
+    fixed_festivals_dates = {
+        name: date(today.year, month, day)
+        for name, (month, day) in fixed_festivals.items()
+    }
     festivals_dates = {**lunar_festivals_dates, **fixed_festivals_dates}
 
     sort_name = ["春节", "端午节", "中秋节", "清明节", "劳动节", "国庆节", "元旦"]
